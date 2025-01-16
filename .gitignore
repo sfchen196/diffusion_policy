@@ -15,6 +15,7 @@ fuse.cfg
 
 # Generation results
 results/
+visualizations/
 
 ray/auth.json
 
