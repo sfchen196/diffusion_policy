@@ -1,0 +1,3 @@
+[submodule "metaworld"]
+	path = metaworld
+	url = git@github.com:sfchen196/metaworld.git
