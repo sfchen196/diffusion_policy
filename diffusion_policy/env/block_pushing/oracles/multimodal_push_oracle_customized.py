@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Oracle for multimodal pushing task."""
+"""Customized Oracle for multimodal pushing task."""
 import diffusion_policy.env.block_pushing.oracles.oriented_push_oracle as oriented_push_oracle_module
 import numpy as np
 from tf_agents.trajectories import policy_step
@@ -24,13 +24,15 @@ from tf_agents.typing import types
 import pybullet  # pylint: disable=unused-import
 
 
-class MultimodalOrientedPushOracle(oriented_push_oracle_module.OrientedPushOracle):
-    """Oracle for multimodal pushing task."""
+class MultimodalOrientedPushOracleCustomized(oriented_push_oracle_module.OrientedPushOracle):
+    """Customized Oracle for multimodal pushing task."""
 
-    def __init__(self, env, goal_dist_tolerance=0.04, action_noise_std=0.0):
-        super(MultimodalOrientedPushOracle, self).__init__(env)
+    def __init__(self, env, goal_dist_tolerance=0.04, action_noise_std=0.0, block="block", target="target"):
+        super(MultimodalOrientedPushOracleCustomized, self).__init__(env)
         self._goal_dist_tolerance = goal_dist_tolerance
         self._action_noise_std = action_noise_std
+        self._block = block
+        self._target = target
 
     def reset(self):
         self.origin = None
@@ -132,33 +134,9 @@ class MultimodalOrientedPushOracle(oriented_push_oracle_module.OrientedPushOracl
             xy_delta = xy_direction * max_step_distance
         return xy_delta
 
-    def _choose_goal_order(self):
-        """Chooses block->target order for multimodal pushing."""
-        # Define all possible ((first_block, first_target),
-        # (second_block, second_target)).
-        possible_orders = [
-            (("block", "target"), ("block2", "target2")),
-            (("block", "target2"), ("block2", "target")),
-            (("block2", "target"), ("block", "target2")),
-            (("block2", "target2"), ("block", "target")),
-        ]
-        # import pdb; pdb.set_trace()
-        # result = random.choice(possible_orders)
-        result = possible_orders[self._env._rng.choice(len(possible_orders))]
-        return result
-
     def _action(self, time_step, policy_state):
         if time_step.is_first():
             self.reset()
-            (
-                (self._first_block, self._first_target),
-                (self._second_block, self._second_target),
-            ) = self._choose_goal_order()
-            self._current_block, self._current_target = (
-                self._first_block,
-                self._first_target,
-            )
-            self._has_switched = False
 
         def _block_target_dist(block, target):
             dist = np.linalg.norm(
@@ -168,20 +146,14 @@ class MultimodalOrientedPushOracle(oriented_push_oracle_module.OrientedPushOracl
             return dist
 
         if (
-            _block_target_dist(self._first_block, self._first_target)
+            _block_target_dist(self._block, self._target)
             < self._goal_dist_tolerance
-            and not self._has_switched
         ):
-            # If first block has been pushed to first target, switch to second block.
-            self._current_block, self._current_target = (
-                self._second_block,
-                self._second_target,
-            )
-            self._has_switched = True
-            self.phase = "return_to_first_preblock"
+              # Stop the oracle or set an appropriate phase
+            return policy_step.PolicyStep(action=np.zeros(2, dtype=np.float32))
 
         xy_delta = self._get_action_for_block_target(
-            time_step, block=self._current_block, target=self._current_target
+            time_step, block=self._block, target=self._target
         )
 
         return policy_step.PolicyStep(action=np.asarray(xy_delta, dtype=np.float32))

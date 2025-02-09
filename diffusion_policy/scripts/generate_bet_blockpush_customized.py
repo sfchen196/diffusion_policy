@@ -18,14 +18,15 @@ from tf_agents.environments.gym_wrapper import GymWrapper
 from tf_agents.trajectories.time_step import StepType
 from diffusion_policy.env.block_pushing.block_pushing_multimodal import BlockPushMultimodal
 from diffusion_policy.env.block_pushing.block_pushing import BlockPush
-from diffusion_policy.env.block_pushing.oracles.multimodal_push_oracle import MultimodalOrientedPushOracle
+from diffusion_policy.env.block_pushing.oracles.multimodal_push_oracle_customized import MultimodalOrientedPushOracleCustomized
 
 @click.command()
 @click.option('-o', '--output', required=True)
 @click.option('-n', '--n_episodes', default=1000)
 @click.option('-c', '--chunk_length', default=-1)
-def main(output, n_episodes, chunk_length):
-
+@click.option('-b', '--block', default='block', help='Specify the block to push.')
+@click.option('-z', '--zone', default='target', help='Specify the target zone.')
+def main(output, n_episodes, chunk_length, block, zone):
     buffer = ReplayBuffer.create_empty_numpy()
     env = TimeLimit(GymWrapper(BlockPushMultimodal()), duration=350)
     for i in tqdm(range(n_episodes)):
@@ -34,7 +35,7 @@ def main(output, n_episodes, chunk_length):
         action_history = list()
 
         env.seed(i)
-        policy = MultimodalOrientedPushOracle(env)
+        policy = MultimodalOrientedPushOracleCustomized(env, block=block, target=zone)
         time_step = env.reset()
         policy_state = policy.get_initial_state(1)
         while True:
@@ -47,7 +48,6 @@ def main(output, n_episodes, chunk_length):
             if time_step.step_type == 2:
                 break
 
-            # state = env.wrapped_env().gym.get_pybullet_state()
             time_step = env.step(action)
             env.render()
         obs_history = np.array(obs_history)
